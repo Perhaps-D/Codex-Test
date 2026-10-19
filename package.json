@@ -1,0 +1,13 @@
+{
+  "name": "basic-rag-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "适合教学的最基础 RAG 知识库演示",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
