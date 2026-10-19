@@ -30,6 +30,39 @@ function normalize(text) {
   return text.toLowerCase().replace(/[\s，。！？、；：,.!?;:]/g, '');
 }
 
+// 提问和统计共用同一套读取方式，保证统计数量与实际可检索条目一致。
+async function loadKnowledgeFiles() {
+  const files = await fs.readdir(KNOWLEDGE_DIR, { withFileTypes: true });
+  const fileNames = files
+    .filter((file) => file.isFile() && file.name.toLowerCase().endsWith('.txt'))
+    .map((file) => file.name)
+    .sort((a, b) => a.localeCompare(b));
+
+  return Promise.all(fileNames.map(async (fileName) => {
+    const text = await fs.readFile(path.join(KNOWLEDGE_DIR, fileName), 'utf8');
+    return { fileName, entries: parseKnowledge(text, fileName) };
+  }));
+}
+
+// 查看当前知识库规模：每次请求重新读取文件，统计会随内容更新。
+app.get('/stats', async (req, res) => {
+  try {
+    const knowledgeFiles = await loadKnowledgeFiles();
+    const files = knowledgeFiles.map((file) => ({
+      fileName: file.fileName,
+      entryCount: file.entries.length
+    }));
+    return res.json({
+      fileCount: files.length,
+      totalEntries: files.reduce((total, file) => total + file.entryCount, 0),
+      files
+    });
+  } catch (error) {
+    console.error('统计知识库失败：', error);
+    return res.status(500).json({ error: '统计知识库失败，请稍后重试。' });
+  }
+});
+
 app.post('/ask', async (req, res) => {
   const question = req.body?.question;
   if (typeof question !== 'string' || !question.trim()) {
@@ -38,14 +71,8 @@ app.post('/ask', async (req, res) => {
 
   try {
     // 每次提问都读取目录中的 txt 文件，新增或修改知识文件后无需重启服务。
-    const fileNames = (await fs.readdir(KNOWLEDGE_DIR))
-      .filter((fileName) => fileName.toLowerCase().endsWith('.txt'))
-      .sort((a, b) => a.localeCompare(b));
-    const entriesByFile = await Promise.all(fileNames.map(async (fileName) => {
-      const text = await fs.readFile(path.join(KNOWLEDGE_DIR, fileName), 'utf8');
-      return parseKnowledge(text, fileName);
-    }));
-    const entries = entriesByFile.flat();
+    const knowledgeFiles = await loadKnowledgeFiles();
+    const entries = knowledgeFiles.flatMap((file) => file.entries);
     const normalizedQuestion = normalize(question.trim());
 
     // 教学用的简单检索：找到问题中包含的最长关键词。

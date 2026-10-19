@@ -35,6 +35,30 @@ curl -X POST http://localhost:3000/ask -H "Content-Type: application/json" -d '{
 
 缺少 `question` 或传入空字符串时，接口返回 HTTP 400。
 
+## 查看知识库统计
+
+访问 `GET /stats`，可以查看文件数、知识条目总数和每个文件的条目数：
+
+```bash
+curl http://localhost:3000/stats
+```
+
+返回示例（数量随知识库内容变化）：
+
+```json
+{
+  "fileCount": 3,
+  "totalEntries": 18,
+  "files": [
+    { "fileName": "faq.txt", "entryCount": 7 },
+    { "fileName": "product.txt", "entryCount": 5 },
+    { "fileName": "service.txt", "entryCount": 6 }
+  ]
+}
+```
+
+统计只包含目录中的 txt 文件，以及同时包含“关键词”和“内容”的有效知识条目；标题和演示声明不计入条目数。每次请求都会重新读取文件，读取失败时返回 HTTP 500。
+
 ## 修改知识库
 
 在 `knowledge-base/` 中编辑或新增 txt 文件。每条知识占两行，条目之间用空行分隔：
